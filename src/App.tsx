@@ -3,6 +3,9 @@ import Header from "./components/Header";
 import Home from "./pages/Home";
 import Jeju from "./pages/Jeju";
 import Sapporo from "./pages/Sapporo";
+import Login from "./pages/Login";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Admin from "./pages/Admin";
 
 function App() {
   return (
@@ -13,6 +16,15 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/jeju" element={<Jeju />} />
           <Route path="/sapporo" element={<Sapporo />} />
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <Admin />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </main>
       <footer className="text-center py-8 text-gray-400 text-sm border-t">
