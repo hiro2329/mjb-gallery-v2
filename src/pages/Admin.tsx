@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
+import imageCompression from "browser-image-compression";
 
-// 데이터 타입 정의
 interface Photo {
   id: number;
   url: string;
@@ -22,10 +22,10 @@ export default function Admin() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  // 사진 목록 상태 (삭제 기능을 위해 필요!)
+  // 사진 목록 상태
   const [photos, setPhotos] = useState<Photo[]>([]);
 
-  // 1. 페이지 켜지면 사진 목록 가져오기
+  // 초기 데이터 로딩
   useEffect(() => {
     fetchPhotos();
   }, []);
@@ -34,27 +34,25 @@ export default function Admin() {
     const { data, error } = await supabase
       .from("photos")
       .select("*")
-      .order("created_at", { ascending: false }); // 최신순
+      .order("created_at", { ascending: false });
 
     if (error) console.error("데이터 로딩 실패:", error);
     else setPhotos(data || []);
   };
 
-  // 로그아웃
   const handleLogout = async () => {
     await supabase.auth.signOut();
     alert("로그아웃 되었습니다 👋");
     navigate("/");
   };
 
-  // 파일 선택
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0]);
     }
   };
 
-  // 업로드 기능
+  // 이미지 업로드 및 압축
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return alert("사진을 선택해주세요!");
@@ -62,35 +60,59 @@ export default function Admin() {
     try {
       setUploading(true);
 
+      // (1) 압축 옵션 설정
+      const options = {
+        maxSizeMB: 1, // 최대 1MB를 넘지 않게 줄여라!
+        maxWidthOrHeight: 1920, // FHD(1920px)보다 크면 줄여라!
+        useWebWorker: true, // 컴퓨터가 버벅이지 않게 따로 일해라!
+      };
+
+      // (2) 압축 수행 및 결과 확인
+      console.log(` 원본 용량: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+
+      const compressedFile = await imageCompression(file, options);
+
+      console.log(
+        ` 압축 후: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`
+      );
+
+      // (3) 파일명 생성
+      // 압축된 파일(compressedFile)을 기반으로 업로드
       const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // 스토리지 업로드
+      // (4) Supabase 업로드
       const { error: uploadError } = await supabase.storage
         .from("images")
-        .upload(filePath, file);
+        .upload(filePath, compressedFile);
 
       if (uploadError) throw uploadError;
 
+      // (5) URL 가져오기
       const {
         data: { publicUrl },
       } = supabase.storage.from("images").getPublicUrl(filePath);
 
-      // DB 저장
+      // (6) DB 저장
       const { error: dbError } = await supabase
         .from("photos")
         .insert([{ url: publicUrl, title, location, category }]);
 
       if (dbError) throw dbError;
 
-      alert("업로드 성공! 🎉");
+      // 성공 메시지에 줄어든 용량 알려주기
+      alert(
+        `업로드 성공! 🎉\n(용량이 ${(compressedFile.size / 1024 / 1024).toFixed(
+          2
+        )} MB로 최적화되었습니다)`
+      );
 
-      // 초기화 및 목록 새로고침
+      // 초기화
       setTitle("");
       setLocation("");
       setFile(null);
-      fetchPhotos(); // 리스트 즉시 갱신!
+      fetchPhotos();
     } catch (error) {
       console.error(error);
       alert("업로드 실패... 😭");
@@ -99,41 +121,24 @@ export default function Admin() {
     }
   };
 
-  // 👇 2. 삭제 기능 (핵심!)
+  // 삭제 함수
   const handleDelete = async (id: number, url: string) => {
-    if (!window.confirm("정말 이 사진을 삭제하시겠습니까? (되돌릴 수 없어요!)"))
-      return;
+    if (!window.confirm("정말 이 사진을 삭제하시겠습니까?")) return;
 
     try {
-      // (1) 스토리지에서 파일 삭제
-      // URL에서 파일명만 발라내기 (예: .../images/1234.jpg -> 1234.jpg)
       const fileName = url.split("/").pop();
-
       if (fileName) {
-        const { error: storageError } = await supabase.storage
-          .from("images")
-          .remove([fileName]); // 배열로 넣어야 함
-
-        if (storageError) {
-          console.error("이미지 삭제 에러:", storageError);
-        }
+        await supabase.storage.from("images").remove([fileName]);
       }
 
-      // (2) DB에서 데이터 삭제
-      const { error: dbError } = await supabase
-        .from("photos")
-        .delete()
-        .eq("id", id);
-
-      if (dbError) throw dbError;
+      const { error } = await supabase.from("photos").delete().eq("id", id);
+      if (error) throw error;
 
       alert("삭제되었습니다! 🗑️");
-
-      // (3) 화면 목록에서 바로 지우기 (새로고침 안 해도 되게)
       setPhotos(photos.filter((photo) => photo.id !== id));
     } catch (error) {
-      console.error("삭제 실패:", error);
-      alert("삭제 중 오류가 발생했습니다.");
+      console.error(error);
+      alert("삭제 실패");
     }
   };
 
@@ -142,7 +147,7 @@ export default function Admin() {
       <div className="flex justify-end mb-4">
         <button
           onClick={handleLogout}
-          className="text-sm text-red-500 font-bold underline"
+          className="text-sm text-red-500 font-bold underline cursor-pointer"
         >
           로그아웃
         </button>
@@ -152,9 +157,9 @@ export default function Admin() {
         📸 관리자 대시보드
       </h2>
 
-      {/* 업로드 폼 영역 */}
+      {/* 업로드 폼 */}
       <div className="bg-white p-6 rounded-lg shadow-md border mb-12">
-        <h3 className="text-xl font-bold mb-4">새 사진 등록</h3>
+        <h3 className="text-xl font-bold mb-4">새 사진 등록 (자동 압축 ⚡)</h3>
         <form onSubmit={handleUpload} className="flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -162,7 +167,7 @@ export default function Admin() {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full border p-2 rounded"
+                className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
               >
                 <option value="JEJU">JEJU (제주)</option>
                 <option value="SAPPORO">SAPPORO (삿포로)</option>
@@ -174,7 +179,7 @@ export default function Admin() {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full border p-2 rounded"
+                className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                 required
               />
             </div>
@@ -184,7 +189,7 @@ export default function Admin() {
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="w-full border p-2 rounded"
+                className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                 required
               />
             </div>
@@ -196,7 +201,7 @@ export default function Admin() {
                 type="file"
                 accept="image/*"
                 onChange={handleFileChange}
-                className="w-full"
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 required
               />
             </div>
@@ -204,16 +209,16 @@ export default function Admin() {
           <button
             type="submit"
             disabled={uploading}
-            className="bg-blue-600 text-white py-3 rounded font-bold hover:bg-blue-700 disabled:bg-gray-400 mt-2"
+            className="bg-blue-600 text-white py-3 rounded font-bold hover:bg-blue-700 disabled:bg-gray-400 mt-2 transition-colors"
           >
-            {uploading ? "업로드 중..." : "등록하기"}
+            {uploading ? "압축 및 업로드 중... ⏳" : "등록하기"}
           </button>
         </form>
       </div>
 
       <hr className="my-10 border-gray-300" />
 
-      {/* 사진 목록 및 삭제 영역 */}
+      {/* 사진 목록 */}
       <div>
         <h3 className="text-xl font-bold mb-6">
           📂 등록된 사진 목록 ({photos.length}장)
@@ -224,14 +229,11 @@ export default function Admin() {
               key={photo.id}
               className="bg-white rounded-lg shadow border overflow-hidden relative group"
             >
-              {/* 이미지 */}
               <img
                 src={photo.url}
                 alt={photo.title}
                 className="w-full h-48 object-cover"
               />
-
-              {/* 정보 */}
               <div className="p-4">
                 <div className="flex justify-between items-start mb-2">
                   <h4 className="font-bold text-lg">{photo.title}</h4>
@@ -241,14 +243,12 @@ export default function Admin() {
                 </div>
                 <p className="text-gray-500 text-sm">{photo.location}</p>
               </div>
-
-              {/* 삭제 버튼 (마우스 올리면 나옴 or 항상 표시) */}
               <button
                 onClick={() => handleDelete(photo.id, photo.url)}
-                className="absolute top-2 right-2 bg-gray-100 text-white p-2 rounded-full shadow-lg opacity-90 hover:opacity-100 hover:bg-red-600 transition-all"
+                className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full shadow-lg opacity-90 hover:opacity-100 hover:bg-red-600 transition-all"
                 title="삭제하기"
               >
-                ❌
+                🗑️
               </button>
             </div>
           ))}
