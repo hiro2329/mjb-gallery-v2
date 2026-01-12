@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { CATEGORIES } from "../constants"; // [핵심] 상수 파일 불러오기
 
 export default function Header() {
   return (
@@ -12,23 +13,25 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* 메뉴 */}
-          <nav className="hidden md:flex space-x-8">
+          {/* 메뉴 영역 */}
+          <nav className="hidden md:flex items-center space-x-8">
             <Link to="/" className="text-gray-600 hover:text-black font-medium">
               Home
             </Link>
-            <Link
-              to="gallery/jeju"
-              className="text-gray-600 hover:text-black font-meqdium"
-            >
-              Jeju
-            </Link>
-            <Link
-              to="gallery/sapporo"
-              className="text-gray-600 hover:text-black font-medium"
-            >
-              Sapporo
-            </Link>
+
+            {/* 카테고리 메뉴 자동 생성 Loop */}
+            {CATEGORIES.map((category) => (
+              <Link
+                key={category}
+                // URL은 소문자로 변환 (예: JEJU -> /gallery/jeju)
+                to={`/gallery/${category.toLowerCase()}`}
+                className="text-gray-600 hover:text-black font-medium"
+              >
+                {/* 화면에 보이는 글자는 첫 글자만 대문자로 (예: JEJU -> Jeju) */}
+                {category.charAt(0).toUpperCase() +
+                  category.slice(1).toLowerCase()}
+              </Link>
+            ))}
           </nav>
         </div>
       </div>
