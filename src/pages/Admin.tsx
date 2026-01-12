@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
 import imageCompression from "browser-image-compression";
+import { CATEGORIES } from "../constants";
 
 interface Photo {
   id: number;
@@ -65,6 +66,7 @@ export default function Admin() {
         maxSizeMB: 1, // 최대 1MB를 넘지 않게 줄여라!
         maxWidthOrHeight: 1920, // FHD(1920px)보다 크면 줄여라!
         useWebWorker: true, // 컴퓨터가 버벅이지 않게 따로 일해라!
+        fileType: "image/webp", // webp 포맷으로 바꿔라!
       };
 
       // (2) 압축 수행 및 결과 확인
@@ -78,8 +80,8 @@ export default function Admin() {
 
       // (3) 파일명 생성
       // 압축된 파일(compressedFile)을 기반으로 업로드
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Date.now()}.${fileExt}`;
+
+      const fileName = `${Date.now()}.webp`;
       const filePath = `${fileName}`;
 
       // (4) Supabase 업로드
@@ -162,15 +164,21 @@ export default function Admin() {
         <h3 className="text-xl font-bold mb-4">새 사진 등록 (자동 압축 ⚡)</h3>
         <form onSubmit={handleUpload} className="flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">카테고리</label>
+            <div className="mb-4">
+              <label className="block text-sm font-bold mb-2">카테고리</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full border p-2 rounded"
               >
-                <option value="JEJU">JEJU (제주)</option>
-                <option value="SAPPORO">SAPPORO (삿포로)</option>
+                <option value="" disabled>
+                  -- 카테고리를 선택하세요 --
+                </option>
+                {CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
               </select>
             </div>
             <div>

@@ -61,7 +61,7 @@ export default function Gallery() {
     <div className="py-10 relative">
       {/* relative 추가 (모달 위치 기준 잡기 위해 안전장치) */}
       <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">
-        ✨ {displayTitle}
+        {displayTitle}
       </h2>
 
       {loading ? (
