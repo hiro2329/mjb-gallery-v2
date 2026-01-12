@@ -18,13 +18,13 @@ export default function Header() {
               Home
             </Link>
             <Link
-              to="/jeju"
-              className="text-gray-600 hover:text-black font-medium"
+              to="gallery/jeju"
+              className="text-gray-600 hover:text-black font-meqdium"
             >
               Jeju
             </Link>
             <Link
-              to="/sapporo"
+              to="gallery/sapporo"
               className="text-gray-600 hover:text-black font-medium"
             >
               Sapporo

@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
 import Home from "./pages/Home";
-import Jeju from "./pages/Jeju";
-import Sapporo from "./pages/Sapporo";
+// import Jeju from "./pages/Jeju";
+// import Sapporo from "./pages/Sapporo";
+import Gallery from "./pages/Gallery";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Admin from "./pages/Admin";
@@ -14,8 +15,7 @@ function App() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/jeju" element={<Jeju />} />
-          <Route path="/sapporo" element={<Sapporo />} />
+          <Route path="/gallery/:category" element={<Gallery />} />
           <Route path="/login" element={<Login />} />
           <Route
             path="/admin"
