@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
 import imageCompression from "browser-image-compression";
 import { CATEGORIES } from "../constants";
+import AdminEditModal from "../components/AdminEditModal"; // 모달 불러오기
 
 interface Photo {
   id: number;
@@ -25,6 +26,9 @@ export default function Admin() {
 
   // 사진 목록 상태
   const [photos, setPhotos] = useState<Photo[]>([]);
+
+  // 수정 모달 상태 (현재 수정 중인 사진 데이터 저장)
+  const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
 
   // 초기 데이터 로딩
   useEffect(() => {
@@ -244,24 +248,43 @@ export default function Admin() {
               />
               <div className="p-4">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-bold text-lg">{photo.title}</h4>
+                  <h4 className="font-bold text-lg truncate">{photo.title}</h4>
                   <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded text-gray-600">
                     {photo.category}
                   </span>
                 </div>
-                <p className="text-gray-500 text-sm">{photo.location}</p>
+                <p className="text-gray-500 text-sm mb-4">{photo.location}</p>
+
+                {/* [수정] 버튼 영역: 기존 우측상단 삭제버튼을 아래쪽 버튼 목록으로 변경 */}
+                <div className="flex gap-2 pt-3 border-t">
+                  <button
+                    onClick={() => setEditingPhoto(photo)}
+                    className="flex-1 bg-gray-100 text-gray-700 py-2 rounded text-sm font-bold hover:bg-gray-200 transition-colors"
+                  >
+                    ✏️ 수정
+                  </button>
+                  <button
+                    onClick={() => handleDelete(photo.id, photo.url)}
+                    className="flex-1 bg-red-50 text-red-600 py-2 rounded text-sm font-bold hover:bg-red-100 transition-colors"
+                  >
+                    🗑️ 삭제
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={() => handleDelete(photo.id, photo.url)}
-                className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full shadow-lg opacity-90 hover:opacity-100 hover:bg-red-600 transition-all"
-                title="삭제하기"
-              >
-                🗑️
-              </button>
             </div>
           ))}
         </div>
       </div>
+
+      {/* [추가] 수정 모달 연결 */}
+      {/* editingPhoto에 데이터가 있을 때만 모달이 뜸 */}
+      {editingPhoto && (
+        <AdminEditModal
+          photo={editingPhoto}
+          onClose={() => setEditingPhoto(null)} // 모달 닫기 버튼 누르면 state 초기화
+          onUpdate={fetchPhotos} // 수정 완료되면 목록 새로고침
+        />
+      )}
     </div>
   );
 }
