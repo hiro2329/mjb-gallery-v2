@@ -33,7 +33,7 @@ export default function Gallery() {
       setLoading(true);
 
       // DB 데이터와 매칭하기 위해 대문자로 변환 (jeju -> JEJU)
-      const targetCategory = category.toUpperCase();
+      const targetCategory = (category || "").toUpperCase();
 
       const { data, error } = await supabase
         .from("photos")

@@ -1,5 +1,3 @@
-import React from "react";
-
 // 사진 데이터 타입 정의 (Supabase 테이블 구조에 맞게 수정 가능)
 interface PhotoData {
   id: number | string;
