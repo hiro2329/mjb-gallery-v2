@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
 import imageCompression from "browser-image-compression";
 import { CATEGORIES } from "../constants";
-import AdminEditModal from "../components/AdminEditModal"; // 모달 불러오기
+import AdminEditModal from "../components/AdminEditModal";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Photo {
   id: number;
@@ -16,6 +17,7 @@ interface Photo {
 
 export default function Admin() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // 입력 폼 상태
   const [title, setTitle] = useState("");
@@ -23,11 +25,7 @@ export default function Admin() {
   const [category, setCategory] = useState("JEJU");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-
-  // 사진 목록 상태
   const [photos, setPhotos] = useState<Photo[]>([]);
-
-  // 수정 모달 상태 (현재 수정 중인 사진 데이터 저장)
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
 
   // 초기 데이터 로딩
@@ -79,7 +77,7 @@ export default function Admin() {
       const compressedFile = await imageCompression(file, options);
 
       console.log(
-        ` 압축 후: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`
+        ` 압축 후: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`,
       );
 
       // (3) 파일명 생성
@@ -106,12 +104,15 @@ export default function Admin() {
         .insert([{ url: publicUrl, title, location, category }]);
 
       if (dbError) throw dbError;
+      // 업로드 성공 시: "photos" 키를 가진 모든 쿼리(갤러리 데이터)를 무효화!
+      // 이렇게 하면 사용자가 갤러리로 돌아갈 때 강제로 새 데이터를 받아옴.
+      await queryClient.invalidateQueries({ queryKey: ["photos"] });
 
       // 성공 메시지에 줄어든 용량 알려주기
       alert(
         `업로드 성공! 🎉\n(용량이 ${(compressedFile.size / 1024 / 1024).toFixed(
-          2
-        )} MB로 최적화되었습니다)`
+          2,
+        )} MB로 최적화되었습니다)`,
       );
 
       // 초기화
@@ -139,6 +140,8 @@ export default function Admin() {
 
       const { error } = await supabase.from("photos").delete().eq("id", id);
       if (error) throw error;
+      // 삭제 성공 시에도 "photos" 키를 가진 쿼리 무효화
+      await queryClient.invalidateQueries({ queryKey: ["photos"] });
 
       alert("삭제되었습니다! 🗑️");
       setPhotos(photos.filter((photo) => photo.id !== id));
@@ -146,6 +149,12 @@ export default function Admin() {
       console.error(error);
       alert("삭제 실패");
     }
+  };
+  // 수정 완료 후 호출될 함수 (AdminEditModal에 전달)
+  const handleUpdateSuccess = () => {
+    // 수정 성공 시에도 무효화
+    queryClient.invalidateQueries({ queryKey: ["photos"] });
+    fetchPhotos(); // 관리자 목록 새로고침
   };
 
   return (
@@ -255,7 +264,7 @@ export default function Admin() {
                 </div>
                 <p className="text-gray-500 text-sm mb-4">{photo.location}</p>
 
-                {/* [수정] 버튼 영역: 기존 우측상단 삭제버튼을 아래쪽 버튼 목록으로 변경 */}
+                {/* 버튼 영역: 기존 우측상단 삭제버튼을 아래쪽 버튼 목록으로 변경 */}
                 <div className="flex gap-2 pt-3 border-t">
                   <button
                     onClick={() => setEditingPhoto(photo)}
@@ -276,13 +285,13 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* [추가] 수정 모달 연결 */}
+      {/* 수정 모달 연결 */}
       {/* editingPhoto에 데이터가 있을 때만 모달이 뜸 */}
       {editingPhoto && (
         <AdminEditModal
           photo={editingPhoto}
           onClose={() => setEditingPhoto(null)} // 모달 닫기 버튼 누르면 state 초기화
-          onUpdate={fetchPhotos} // 수정 완료되면 목록 새로고침
+          onUpdate={handleUpdateSuccess} // 수정 완료되면 목록 새로고침 (단순 fetchPhotos 대신 invalidate가 포함된 함수 전달)
         />
       )}
     </div>
