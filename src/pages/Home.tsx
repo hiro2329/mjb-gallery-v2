@@ -40,7 +40,7 @@ export default function Home() {
   };
 
   const handleDragEnd = (
-    event: MouseEvent | TouchEvent | PointerEvent,
+    _event: MouseEvent | TouchEvent | PointerEvent,
     info: PanInfo,
   ) => {
     const { offset, velocity } = info;
